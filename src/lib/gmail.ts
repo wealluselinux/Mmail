@@ -155,6 +155,16 @@ export async function modifyMessage(
   });
 }
 
+export async function getInboxStats(
+  token: string,
+): Promise<{ unread: number; total: number }> {
+  const label = await gmail<{ messagesUnread?: number; messagesTotal?: number }>(
+    token,
+    "/labels/INBOX",
+  );
+  return { unread: label.messagesUnread ?? 0, total: label.messagesTotal ?? 0 };
+}
+
 export async function trashMessage(token: string, id: string): Promise<void> {
   await gmail(token, `/messages/${encodeURIComponent(id)}/trash`, { method: "POST" });
 }

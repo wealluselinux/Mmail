@@ -9,11 +9,15 @@ Mmail doesn't host any mail. You sign in with Google and it reads and organizes 
 - Sign in with Google (the only way in)
 - Inbox, Starred, Sent, Drafts, Spam and Trash
 - Search, read, star, archive, trash, mark unread
-- Material 3 color scheme generated from a single seed color, with automatic light and dark mode
+- Material 3 color scheme generated from a single seed color
+- **Customize page:** light, dark or system theme, a color picker with presets, and on/off switches for everything below
+- **Widgets** (Home page): Material You clock (analog or digital), date, weather, unread count and a note of your own
+- **Optional top bar:** greeting, time and date, weather and unread count across the top of the app
+- Settings sync across your devices (stored in Supabase) and the theme renders with no flash
 - Privacy first: remote images in emails are blocked until you allow them, and message HTML is rendered in a sandbox with scripts disabled
 - Google refresh tokens are encrypted (AES-256-GCM) before they are stored
 
-**Planned:** compose and reply, threads, labels, attachments, theme color picker.
+**Planned:** compose and reply, threads, labels, attachments, more widgets.
 
 ## Tech stack
 
@@ -34,7 +38,7 @@ Next.js (App Router) and TypeScript, Supabase (Postgres) for accounts and encryp
 
 ### 2. Supabase
 
-Create a project, then run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. Copy the project URL and the **service role** key from *Project Settings > API*.
+Create a project, then run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. (It is safe to run again after updating Mmail; it only adds what's missing.) Copy the project URL and the **service role** key from *Project Settings > API*.
 
 ### 3. Environment variables
 
@@ -64,6 +68,8 @@ The repo includes a [`render.yaml`](render.yaml) blueprint. Create a **Web Servi
 - The session cookie is `HttpOnly`, `SameSite=Lax`, signed with HMAC-SHA256, and `Secure` in production.
 - The `users` table has Row Level Security enabled with no policies, so the public anon key can't read it.
 - Sign-in uses the authorization code flow with PKCE and a state check.
+- Saved settings are validated field by field on the server before use, so a tampered value can't reach the page.
+- Weather uses Open-Meteo, which needs no account. Only the coordinates of the city you pick are sent to it.
 
 ## Contributing
 

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { decrypt, sign, unsign } from "./crypto";
 import { refreshAccessToken } from "./google";
 import { supabase, type UserRow } from "./supabase";
@@ -24,7 +25,7 @@ export const sessionMaxAge = SESSION_TTL_SECONDS;
 export type SessionUser = Pick<UserRow, "google_sub" | "email" | "name" | "picture">;
 
 /** Returns the signed-in user, or null. Safe to call from server components and route handlers. */
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const store = await cookies();
   const raw = store.get(SESSION_COOKIE)?.value;
   if (!raw) return null;
@@ -40,7 +41,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     .eq("google_sub", sub)
     .maybeSingle();
   return (data as SessionUser | null) ?? null;
-}
+});
 
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 

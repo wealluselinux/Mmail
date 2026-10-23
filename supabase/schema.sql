@@ -14,3 +14,7 @@ create table if not exists public.users (
 -- Lock the table down: with RLS enabled and no policies, only the server's
 -- service-role key can read or write it. The public anon key gets nothing.
 alter table public.users enable row level security;
+
+-- Added with the customize page: per-user preferences (theme, widgets, top bar).
+-- Safe to run more than once.
+alter table public.users add column if not exists settings jsonb not null default '{}'::jsonb;

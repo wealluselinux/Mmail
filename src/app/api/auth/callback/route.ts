@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encrypt } from "@/lib/crypto";
 import { appUrl, exchangeCode, fetchProfile, SCOPES } from "@/lib/google";
+import { PREFS_COOKIE, sanitizePrefs } from "@/lib/prefs";
+import { encodePrefs, prefsCookieOptions } from "@/lib/prefs-server";
 import {
   cookieBase,
   createSessionValue,
@@ -71,6 +73,16 @@ export async function GET(req: NextRequest) {
       ...cookieBase,
       maxAge: sessionMaxAge,
     });
+    // Restore saved preferences on this device. If the settings column doesn't exist
+    // yet, the query just errors and we skip it.
+    const { data: saved } = await db
+      .from("users")
+      .select("settings")
+      .eq("google_sub", profile.sub)
+      .maybeSingle();
+    if (saved?.settings && Object.keys(saved.settings).length > 0) {
+      res.cookies.set(PREFS_COOKIE, encodePrefs(sanitizePrefs(saved.settings)), prefsCookieOptions);
+    }
     res.cookies.delete("mmail_oauth_state");
     res.cookies.delete("mmail_oauth_verifier");
     return res;

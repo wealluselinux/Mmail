@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
+import { PREFS_COOKIE } from "@/lib/prefs";
+import { decodePrefs } from "@/lib/prefs-server";
 import { buildThemeCss } from "@/lib/theme";
 import "./globals.css";
+import "./widgets.css";
 
 export const metadata: Metadata = {
   title: "Mmail",
@@ -15,11 +19,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // The theme is rendered on the server from the saved preferences, so there is no flash.
+  const prefs = decodePrefs((await cookies()).get(PREFS_COOKIE)?.value);
   return (
     <html lang="en">
       <head>
-        <style dangerouslySetInnerHTML={{ __html: buildThemeCss() }} />
+        <style id="mmail-theme" dangerouslySetInnerHTML={{ __html: buildThemeCss(prefs.seed, prefs.mode) }} />
       </head>
       <body>{children}</body>
     </html>

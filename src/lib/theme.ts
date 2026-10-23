@@ -4,9 +4,7 @@ import {
   themeFromSourceColor,
   type Scheme,
 } from "@material/material-color-utilities";
-
-/** Default Material You seed color (a soft purple, close to the reference mockups). */
-export const DEFAULT_SEED = "#7c5cbf";
+import { DEFAULT_SEED, type ThemeMode } from "./prefs";
 
 const ROLES: Record<string, keyof Scheme> = {
   primary: "primary",
@@ -45,14 +43,19 @@ function block(scheme: Scheme): string {
 }
 
 /**
- * Builds the CSS custom properties for a full Material 3 color scheme
- * (light + dark) from a single seed color, the same way Android's
- * Material You derives its dynamic palette.
+ * Builds the CSS custom properties for a full Material 3 color scheme from a
+ * single seed color, the same way Android's Material You derives its dynamic
+ * palette. `mode` picks light, dark, or follows the operating system.
  */
-export function buildThemeCss(seedHex: string = DEFAULT_SEED): string {
-  const theme = themeFromSourceColor(argbFromHex(seedHex));
+export function buildThemeCss(
+  seedHex: string = DEFAULT_SEED,
+  mode: ThemeMode = "system",
+): string {
+  const { light, dark } = themeFromSourceColor(argbFromHex(seedHex)).schemes;
+  if (mode === "light") return `:root{color-scheme:light;${block(light)}}`;
+  if (mode === "dark") return `:root{color-scheme:dark;${block(dark)}}`;
   return (
-    `:root{color-scheme:light dark;${block(theme.schemes.light)}}` +
-    `@media (prefers-color-scheme: dark){:root{${block(theme.schemes.dark)}}}`
+    `:root{color-scheme:light dark;${block(light)}}` +
+    `@media (prefers-color-scheme: dark){:root{${block(dark)}}}`
   );
 }

@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "./Icon";
+import { usePrefs } from "./PrefsProvider";
+import { WidgetBoard } from "./widgets";
 
 type Summary = {
   id: string;
@@ -17,9 +20,11 @@ type Summary = {
 
 type Detail = Summary & { to: string; html: string | null; text: string | null };
 
-type Mailbox = "INBOX" | "STARRED" | "SENT" | "DRAFT" | "SPAM" | "TRASH";
+type MailFolder = "INBOX" | "STARRED" | "SENT" | "DRAFT" | "SPAM" | "TRASH";
+/** HOME is the widget board, not a Gmail folder. */
+type Mailbox = MailFolder | "HOME";
 
-const NAV: { id: Mailbox; label: string; icon: IconName }[] = [
+const NAV: { id: MailFolder; label: string; icon: IconName }[] = [
   { id: "INBOX", label: "Inbox", icon: "inbox" },
   { id: "STARRED", label: "Starred", icon: "star" },
   { id: "SENT", label: "Sent", icon: "send" },
@@ -80,6 +85,8 @@ function buildSrcDoc(detail: Detail, loadImages: boolean): string {
 
 export function Inbox({ user }: { user: User }) {
   const router = useRouter();
+  const { prefs } = usePrefs();
+  const hasWidgets = Object.values(prefs.widgets).some(Boolean);
   const [mailbox, setMailbox] = useState<Mailbox>("INBOX");
   const [query, setQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
@@ -104,6 +111,7 @@ export function Inbox({ user }: { user: User }) {
 
   // Load the message list whenever the mailbox, search, or reload key changes.
   useEffect(() => {
+    if (mailbox === "HOME") return;
     const controller = new AbortController();
     const params = new URLSearchParams({ mailbox });
     if (activeQuery) params.set("q", activeQuery);
@@ -128,7 +136,7 @@ export function Inbox({ user }: { user: User }) {
   }, [mailbox, activeQuery, reloadKey, handleAuthError]);
 
   function switchMailbox(next: Mailbox) {
-    setLoading(true);
+    setLoading(next !== "HOME");
     setMessages([]);
     setSelectedId(null);
     setDetail(null);
@@ -213,7 +221,7 @@ export function Inbox({ user }: { user: User }) {
     [detail, loadImages],
   );
   const displayName = user.name ?? user.email;
-  const mailboxLabel = NAV.find((n) => n.id === mailbox)!.label;
+  const mailboxLabel = mailbox === "HOME" ? "Home" : NAV.find((n) => n.id === mailbox)!.label;
 
   return (
     <div className="app">
@@ -230,6 +238,7 @@ export function Inbox({ user }: { user: User }) {
           role="search"
           onSubmit={(e) => {
             e.preventDefault();
+            if (mailbox === "HOME") setMailbox("INBOX");
             setLoading(true);
             setSelectedId(null);
             setDetail(null);
@@ -239,7 +248,7 @@ export function Inbox({ user }: { user: User }) {
           <Icon name="search" size={22} />
           <input
             type="search"
-            placeholder={`Search ${mailboxLabel.toLowerCase()}`}
+            placeholder={mailbox === "HOME" ? "Search mail" : `Search ${mailboxLabel.toLowerCase()}`}
             aria-label="Search mail"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -255,6 +264,9 @@ export function Inbox({ user }: { user: User }) {
               initial(displayName)
             )}
           </span>
+          <Link href="/customize" className="icon-btn" title="Customize" aria-label="Customize">
+            <Icon name="settings" />
+          </Link>
           <form action="/api/auth/logout" method="post">
             <button className="icon-btn" type="submit" title="Sign out" aria-label="Sign out">
               <Icon name="logout" />
@@ -264,6 +276,16 @@ export function Inbox({ user }: { user: User }) {
       </header>
 
       <nav className="nav" aria-label="Mailboxes">
+        {hasWidgets && (
+          <button
+            className="nav-item"
+            aria-current={mailbox === "HOME"}
+            onClick={() => switchMailbox("HOME")}
+          >
+            <Icon name="home" />
+            <span className="nav-label">Home</span>
+          </button>
+        )}
         {NAV.map((item) => (
           <button
             key={item.id}
@@ -277,6 +299,15 @@ export function Inbox({ user }: { user: User }) {
         ))}
       </nav>
 
+      {mailbox === "HOME" ? (
+        <section className="pane pane-board" aria-label="Home">
+          <div className="pane-head">
+            <span>Home</span>
+          </div>
+          <WidgetBoard prefs={prefs} onOpenInbox={() => switchMailbox("INBOX")} />
+        </section>
+      ) : (
+      <>
       <section className={`pane pane-list${selectedId ? " hidden" : ""}`} aria-label="Messages">
         <div className="pane-head">
           <span>{activeQuery ? `Results for “${activeQuery}”` : mailboxLabel}</span>
@@ -408,6 +439,8 @@ export function Inbox({ user }: { user: User }) {
           </div>
         )}
       </section>
+      </>
+      )}
     </div>
   );
 }
