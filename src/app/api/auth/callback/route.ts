@@ -1,0 +1,80 @@
+import { NextRequest, NextResponse } from "next/server";
+import { encrypt } from "@/lib/crypto";
+import { appUrl, exchangeCode, fetchProfile, SCOPES } from "@/lib/google";
+import {
+  cookieBase,
+  createSessionValue,
+  SESSION_COOKIE,
+  sessionMaxAge,
+} from "@/lib/session";
+import { supabase } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+
+function fail(reason: string) {
+  const res = NextResponse.redirect(`${appUrl()}/login?error=${encodeURIComponent(reason)}`);
+  res.cookies.delete("mmail_oauth_state");
+  res.cookies.delete("mmail_oauth_verifier");
+  return res;
+}
+
+export async function GET(req: NextRequest) {
+  const params = req.nextUrl.searchParams;
+
+  if (params.get("error")) return fail("access_denied");
+
+  const code = params.get("code");
+  const state = params.get("state");
+  const savedState = req.cookies.get("mmail_oauth_state")?.value;
+  const verifier = req.cookies.get("mmail_oauth_verifier")?.value;
+  if (!code || !state || !savedState || !verifier || state !== savedState) {
+    return fail("invalid_state");
+  }
+
+  try {
+    const tokens = await exchangeCode(code, verifier);
+
+    // Mmail is useless without Gmail access, so insist on the Gmail scope.
+    const granted = tokens.scope.split(" ");
+    const gmailScope = SCOPES.find((s) => s.includes("gmail"))!;
+    if (!granted.includes(gmailScope)) return fail("missing_gmail_scope");
+
+    const profile = await fetchProfile(tokens.access_token);
+    const db = supabase();
+
+    let encryptedRefresh: string | null = tokens.refresh_token
+      ? encrypt(tokens.refresh_token)
+      : null;
+    if (!encryptedRefresh) {
+      // Google only sends a refresh token on consent; fall back to the one we already have.
+      const { data: existing } = await db
+        .from("users")
+        .select("encrypted_refresh_token")
+        .eq("google_sub", profile.sub)
+        .maybeSingle();
+      encryptedRefresh = existing?.encrypted_refresh_token ?? null;
+    }
+    if (!encryptedRefresh) return fail("no_refresh_token");
+
+    const { error } = await db.from("users").upsert({
+      google_sub: profile.sub,
+      email: profile.email,
+      name: profile.name ?? null,
+      picture: profile.picture ?? null,
+      encrypted_refresh_token: encryptedRefresh,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) return fail("database_error");
+
+    const res = NextResponse.redirect(`${appUrl()}/mail`);
+    res.cookies.set(SESSION_COOKIE, createSessionValue(profile.sub), {
+      ...cookieBase,
+      maxAge: sessionMaxAge,
+    });
+    res.cookies.delete("mmail_oauth_state");
+    res.cookies.delete("mmail_oauth_verifier");
+    return res;
+  } catch {
+    return fail("sign_in_failed");
+  }
+}
