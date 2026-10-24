@@ -16,6 +16,7 @@ Material Mail doesn't host any mail. You sign in with Google and it reads and or
 - **Customize page:** light, dark or system theme, a color picker with presets, and on/off switches for everything below
 - **Wallpaper:** upload a picture and Material Mail picks matching colors from it, and offers other colors from the image
 - **Widgets:** clock (analog or digital), date, weather, unread count, note, calendar, quick search and compose. Drag them anywhere on the Home page with *Rearrange*, or keep them in a column beside your mail
+- **Panel transparency and blur** sliders (with a wallpaper) and smooth **animations** you can switch off (they also respect your device's reduced-motion setting)
 - **Optional top bar:** greeting, time and date, weather and unread count across the top of the app
 - Preferences and wallpaper are saved to your account (stored in Supabase), so they follow you to any device. Each linked account has its own look. The theme renders with no flash
 - Privacy first: remote images in emails are blocked until you allow them, and message HTML is rendered in a sandbox with scripts disabled

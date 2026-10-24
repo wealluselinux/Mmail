@@ -32,6 +32,12 @@ export type Prefs = {
   dock: boolean;
   /** Version number of the uploaded wallpaper (a timestamp), or 0 for none. */
   wallpaper: number;
+  /** How solid panels are over a wallpaper, in percent (25 = see-through, 100 = solid). */
+  opacity: number;
+  /** How much the wallpaper behind panels is blurred, in pixels. */
+  blur: number;
+  /** Interface animations. The device's reduced-motion setting always wins. */
+  motion: boolean;
   clockStyle: "analog" | "digital";
   weather: WeatherLocation | null;
   units: "f" | "c";
@@ -66,6 +72,9 @@ export const DEFAULT_PREFS: Prefs = {
   layout: {},
   dock: false,
   wallpaper: 0,
+  opacity: 78,
+  blur: 18,
+  motion: true,
   clockStyle: "analog",
   weather: null,
   units: "f",
@@ -117,6 +126,13 @@ export function sanitizePrefs(input: unknown): Prefs {
   ) {
     out.wallpaper = Math.floor(input.wallpaper);
   }
+  if (typeof input.opacity === "number" && Number.isFinite(input.opacity)) {
+    out.opacity = Math.min(100, Math.max(25, Math.round(input.opacity)));
+  }
+  if (typeof input.blur === "number" && Number.isFinite(input.blur)) {
+    out.blur = Math.min(40, Math.max(0, Math.round(input.blur)));
+  }
+  if (typeof input.motion === "boolean") out.motion = input.motion;
   if (input.clockStyle === "analog" || input.clockStyle === "digital") {
     out.clockStyle = input.clockStyle;
   }

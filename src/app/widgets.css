@@ -497,13 +497,13 @@
 }
 .has-wallpaper .pane,
 .has-wallpaper .card {
-  background: color-mix(in srgb, var(--md-surface) 78%, transparent);
-  backdrop-filter: blur(18px) saturate(1.2);
+  background: color-mix(in srgb, var(--md-surface) var(--panel-a, 78%), transparent);
+  backdrop-filter: blur(var(--panel-blur, 18px)) saturate(1.2);
 }
 .has-wallpaper .topbar-strip,
 .has-wallpaper .nav {
-  background: color-mix(in srgb, var(--md-surface-container) 72%, transparent);
-  backdrop-filter: blur(18px) saturate(1.2);
+  background: color-mix(in srgb, var(--md-surface-container) var(--panel-a, 78%), transparent);
+  backdrop-filter: blur(var(--panel-blur, 18px)) saturate(1.2);
 }
 .has-wallpaper .nav {
   border-radius: var(--shape-xl);
@@ -516,8 +516,8 @@
   align-self: flex-start;
   margin: 8px 8px 0;
   border-radius: var(--shape-full);
-  background: color-mix(in srgb, var(--md-surface) 78%, transparent);
-  backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--md-surface) var(--panel-a, 78%), transparent);
+  backdrop-filter: blur(var(--panel-blur, 18px));
 }
 .wp-preview {
   height: 150px;
@@ -961,5 +961,153 @@
   .w-calendar,
   .w-search {
     width: min(320px, calc(100vw - 48px));
+  }
+}
+
+/* ---------- Sliders ---------- */
+.slider-row {
+  display: block;
+  padding: 12px 0;
+}
+.slider-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.slider-top strong {
+  font-weight: 500;
+}
+.slider-top output {
+  font-variant-numeric: tabular-nums;
+  color: var(--md-on-surface-variant);
+}
+.range {
+  width: 100%;
+  height: 28px;
+  accent-color: var(--md-primary);
+  cursor: pointer;
+}
+.range:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Animations ---------- */
+/* Everything below is switched off by Customize > Animations (html[data-motion="off"])
+   and by the device's reduced-motion setting, in one place at the end. */
+@keyframes mm-rise {
+  from { opacity: 0; transform: translateY(12px); }
+}
+@keyframes mm-pop {
+  from { opacity: 0; transform: scale(0.88); }
+}
+@keyframes mm-slide-in {
+  from { opacity: 0; transform: translateX(18px); }
+}
+@keyframes mm-sheet {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+}
+@keyframes mm-fade {
+  from { opacity: 0; }
+}
+@keyframes mm-toast {
+  from { opacity: 0; transform: translate(-50%, 24px); }
+}
+@keyframes mm-float {
+  50% { transform: translateY(-6px) rotate(1.5deg); }
+}
+
+/* The mail list: rows cascade in once when a folder opens. */
+.row {
+  animation: mm-rise 0.42s var(--ease-emphasized) backwards;
+  transition: background-color 0.18s, transform 0.18s var(--ease-emphasized);
+}
+.row:nth-child(2) { animation-delay: 30ms; }
+.row:nth-child(3) { animation-delay: 60ms; }
+.row:nth-child(4) { animation-delay: 90ms; }
+.row:nth-child(5) { animation-delay: 120ms; }
+.row:nth-child(6) { animation-delay: 150ms; }
+.row:nth-child(7) { animation-delay: 180ms; }
+.row:nth-child(8) { animation-delay: 210ms; }
+.row:nth-child(9) { animation-delay: 240ms; }
+.row:nth-child(10) { animation-delay: 270ms; }
+.row:nth-child(n + 11) { animation-delay: 300ms; }
+.row:active {
+  transform: scale(0.985);
+}
+
+/* Opening a message, dialogs, menus, toasts */
+.reader { animation: mm-slide-in 0.38s var(--ease-emphasized) backwards; }
+.compose { animation: mm-sheet 0.42s var(--ease-emphasized) backwards; }
+.scrim { animation: mm-fade 0.25s ease-out backwards; }
+.menu { transform-origin: top right; animation: mm-pop 0.22s var(--ease-emphasized) backwards; }
+.snackbar { animation: mm-toast 0.35s var(--ease-emphasized) backwards; }
+.nav-group[open] > :not(summary) { animation: mm-rise 0.3s var(--ease-emphasized) backwards; }
+
+/* Widgets pop in one after another and lift when you point at them. */
+.canvas:not(.editing) .cw > *,
+.stack-item > * {
+  animation: mm-pop 0.55s var(--ease-emphasized) backwards;
+  transition: transform 0.25s var(--ease-emphasized), filter 0.25s;
+}
+.cw:nth-child(2) > *, .stack-item:nth-child(2) > * { animation-delay: 70ms; }
+.cw:nth-child(3) > *, .stack-item:nth-child(3) > * { animation-delay: 140ms; }
+.cw:nth-child(4) > *, .stack-item:nth-child(4) > * { animation-delay: 210ms; }
+.cw:nth-child(n + 5) > *, .stack-item:nth-child(n + 5) > * { animation-delay: 280ms; }
+.canvas:not(.editing) .cw > *:hover,
+.stack-item > *:hover {
+  transform: translateY(-4px) rotate(-1deg);
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.18));
+}
+
+/* Buttons and icons press in. */
+.btn,
+.icon-btn,
+.compose-fab {
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.18s var(--ease-emphasized);
+}
+.btn:active:not(:disabled),
+.icon-btn:active:not(:disabled),
+.compose-fab:active {
+  transform: scale(0.95);
+}
+
+/* Switching accent color or light/dark fades instead of snapping. */
+.shell,
+.pane,
+.card,
+.nav,
+.topbar-strip {
+  transition: background-color 0.35s, color 0.35s;
+}
+
+/* Landing page: the headline block arrives in sequence, widgets then drift gently. */
+.l-hero h1 { animation: mm-rise 0.7s var(--ease-emphasized) backwards; }
+.l-hero-copy > p { animation: mm-rise 0.7s 0.1s var(--ease-emphasized) backwards; }
+.l-actions { animation: mm-rise 0.7s 0.2s var(--ease-emphasized) backwards; }
+.l-mock { animation: mm-pop 0.8s 0.15s var(--ease-emphasized) backwards; }
+.l-mock-list li:nth-child(1) { animation: mm-rise 0.5s 0.55s var(--ease-emphasized) backwards; }
+.l-mock-list li:nth-child(2) { animation: mm-rise 0.5s 0.65s var(--ease-emphasized) backwards; }
+.l-mock-list li:nth-child(3) { animation: mm-rise 0.5s 0.75s var(--ease-emphasized) backwards; }
+.l-mock-list li:nth-child(4) { animation: mm-rise 0.5s 0.85s var(--ease-emphasized) backwards; }
+.l-clock { animation: l-settle 0.9s 0.5s var(--ease-emphasized) backwards, mm-float 7s 1.5s ease-in-out infinite; }
+.l-weather { animation: l-settle 0.9s 0.65s var(--ease-emphasized) backwards, mm-float 8s 2s ease-in-out infinite reverse; }
+.l-tile { transition: transform 0.3s var(--ease-emphasized); }
+.l-tile:hover { transform: translateY(-4px); }
+
+/* One switch for all of it. */
+html[data-motion="off"] *,
+html[data-motion="off"] *::before,
+html[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -43,6 +43,10 @@ export function PrefsProvider({ initial, children }: { initial: Prefs; children:
     if (el) el.textContent = buildThemeCss(prefs.seed, prefs.mode);
   }, [prefs.seed, prefs.mode]);
 
+  useEffect(() => {
+    document.documentElement.dataset.motion = prefs.motion ? "on" : "off";
+  }, [prefs.motion]);
+
   const save = useCallback((next: Prefs) => {
     latest.current = next;
     setStatus("saving");

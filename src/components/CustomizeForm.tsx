@@ -335,6 +335,83 @@ function WallpaperSection() {
   );
 }
 
+function Slider({
+  label,
+  value,
+  min,
+  max,
+  unit,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  unit: string;
+  disabled?: boolean;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="slider-row">
+      <span className="slider-top">
+        <strong>{label}</strong>
+        <output>
+          {value}
+          {unit}
+        </output>
+      </span>
+      <input
+        type="range"
+        className="range"
+        min={min}
+        max={max}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </label>
+  );
+}
+
+function PanelsSection() {
+  const { prefs, update } = usePrefs();
+  const has = prefs.wallpaper > 0;
+  return (
+    <section className="card">
+      <h2>Panels</h2>
+      <p>
+        Make your inbox, folders and settings cards see-through so your wallpaper shows behind
+        them.{!has && " Add a wallpaper above to use these."}
+      </p>
+      <Slider
+        label="Transparency"
+        value={100 - prefs.opacity}
+        min={0}
+        max={75}
+        unit="%"
+        disabled={!has}
+        onChange={(v) => update({ opacity: 100 - v })}
+      />
+      <Slider
+        label="Background blur"
+        value={prefs.blur}
+        min={0}
+        max={40}
+        unit="px"
+        disabled={!has}
+        onChange={(blur) => update({ blur })}
+      />
+      <Switch
+        label="Animations"
+        hint="Smooth motion when lists, widgets and dialogs appear. Always off if your device asks for reduced motion."
+        checked={prefs.motion}
+        onChange={(motion) => update({ motion })}
+      />
+    </section>
+  );
+}
+
 function DeleteAccount() {
   const [step, setStep] = useState<"idle" | "confirm" | "working">("idle");
   const [error, setError] = useState("");
@@ -466,6 +543,8 @@ export function CustomizeForm() {
         </section>
 
         <WallpaperSection />
+
+        <PanelsSection />
 
         <section className="card">
           <h2>Top bar</h2>

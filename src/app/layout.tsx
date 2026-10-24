@@ -23,7 +23,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // The theme is rendered on the server from the saved preferences, so there is no flash.
   const prefs = decodePrefs((await cookies()).get(PREFS_COOKIE)?.value);
   return (
-    <html lang="en">
+    <html lang="en" data-motion={prefs.motion ? "on" : "off"}>
       <head>
         <meta name="google-site-verification" content="K03Ae35CJiiBISGu8jljvx4gj0jCN9MtjYM__lcnpPM" />
         <style id="mmail-theme" dangerouslySetInnerHTML={{ __html: buildThemeCss(prefs.seed, prefs.mode) }} />
