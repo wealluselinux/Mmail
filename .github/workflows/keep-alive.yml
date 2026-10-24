@@ -1,5 +1,5 @@
 # Render's free plan puts a service to sleep after about 15 minutes without traffic.
-# This pings the site every 10 minutes so it stays awake.
+# This pings the site every 5 minutes so it stays awake.
 #
 # To use a different address, add a repository variable named SITE_URL under
 # Settings > Secrets and variables > Actions > Variables.
@@ -7,7 +7,7 @@ name: Keep Render awake
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions: {}
