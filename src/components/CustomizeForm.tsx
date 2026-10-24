@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { extractPalette, prepareWallpaper } from "@/lib/palette";
 import type { Prefs, WidgetKey } from "@/lib/prefs";
 import { Icon } from "./Icon";
 import { usePrefs, type SaveStatus } from "./PrefsProvider";
@@ -179,6 +180,161 @@ function CityPicker() {
   );
 }
 
+function WallpaperSection() {
+  const { prefs, update } = usePrefs();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [palette, setPalette] = useState<string[]>([]);
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setMessage("Please choose an image file.");
+
+    setBusy(true);
+    setMessage(null);
+    let prepared: Awaited<ReturnType<typeof prepareWallpaper>>;
+    try {
+      prepared = await prepareWallpaper(file);
+    } catch {
+      setBusy(false);
+      return setMessage("Couldn't read that image. Try a JPG, PNG or WebP.");
+    }
+
+    try {
+      const res = await fetch("/api/wallpaper", {
+        method: "PUT",
+        headers: { "Content-Type": "image/jpeg" },
+        body: prepared.blob,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setMessage(
+          data.error === "storage_unavailable"
+            ? "Wallpapers need the latest supabase/schema.sql to be run in Supabase first."
+            : "Couldn't save that image. Please try again.",
+        );
+        return;
+      }
+      const colors = extractPalette(prepared.canvas);
+      setPalette(colors);
+      // The first color is the best match, so use it right away. The others are one tap away.
+      update({ wallpaper: Date.now(), ...(colors[0] ? { seed: colors[0] } : {}) });
+    } catch {
+      setMessage("Couldn't reach the server. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function matchColors() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const img = new Image();
+      img.src = `/api/wallpaper?v=${prefs.wallpaper}`;
+      await img.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext("2d")?.drawImage(img, 0, 0);
+      const colors = extractPalette(canvas);
+      setPalette(colors);
+      if (colors[0]) update({ seed: colors[0] });
+    } catch {
+      setMessage("Couldn't read the wallpaper. Try uploading it again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await fetch("/api/wallpaper", { method: "DELETE" });
+      setPalette([]);
+      update({ wallpaper: 0 });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>Wallpaper</h2>
+      <p>
+        Put a picture behind Mmail. It picks matching colors from the image, so everything
+        else follows its mood.
+      </p>
+
+      {prefs.wallpaper > 0 && (
+        <div
+          className="wp-preview"
+          style={{ backgroundImage: `url(/api/wallpaper?v=${prefs.wallpaper})` }}
+          role="img"
+          aria-label="Your wallpaper"
+        />
+      )}
+
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
+      <div className="row-inline" style={{ alignItems: "center" }}>
+        <button
+          className="btn btn-tonal"
+          type="button"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+        >
+          <Icon name="image" size={20} />
+          {busy ? "Working…" : prefs.wallpaper > 0 ? "Change wallpaper" : "Choose a wallpaper"}
+        </button>
+        {prefs.wallpaper > 0 && (
+          <>
+            <button className="btn btn-text" type="button" disabled={busy} onClick={matchColors}>
+              Match colors to wallpaper
+            </button>
+            <button className="btn btn-text" type="button" disabled={busy} onClick={remove}>
+              Remove
+            </button>
+          </>
+        )}
+      </div>
+      {message && (
+        <p role="alert" style={{ margin: "12px 0 0", fontSize: 13, color: "var(--md-error)" }}>
+          {message}
+        </p>
+      )}
+
+      {palette.length > 0 && (
+        <>
+          <span className="field-label">Colors from your wallpaper</span>
+          <div className="swatches">
+            {palette.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className="swatch"
+                style={{ background: c }}
+                aria-label={`Use color ${c}`}
+                aria-pressed={prefs.seed === c}
+                onClick={() => update({ seed: c })}
+              >
+                {prefs.seed === c && <Icon name="check" size={20} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      <p style={{ margin: "14px 0 0", fontSize: 12 }}>
+        Wallpapers are resized, stripped of photo details like location, and saved to your
+        account.
+      </p>
+    </section>
+  );
+}
+
 export function CustomizeForm() {
   const { prefs, status, update, reset } = usePrefs();
   const [hexDraft, setHexDraft] = useState<string | null>(null);
@@ -256,6 +412,8 @@ export function CustomizeForm() {
           </div>
         </section>
 
+        <WallpaperSection />
+
         <section className="card">
           <h2>Top bar</h2>
           <p>A slim bar across the top with a greeting, the time, weather and your unread count.</p>
@@ -268,7 +426,7 @@ export function CustomizeForm() {
 
         <section className="card">
           <h2>Widgets</h2>
-          <p>Turned-on widgets appear on the Home page in the sidebar.</p>
+          <p>Turned-on widgets appear on the Home page in the sidebar. Each account has its own settings.</p>
 
           <Switch
             label="Clock"
@@ -331,6 +489,38 @@ export function CustomizeForm() {
               />
             </div>
           )}
+
+          <Switch
+            label="Calendar"
+            hint="A month view with today highlighted"
+            checked={prefs.widgets.calendar}
+            onChange={(v) => setWidget("calendar", v)}
+          />
+          <Switch
+            label="Quick search"
+            hint="Search all your mail from the Home page"
+            checked={prefs.widgets.search}
+            onChange={(v) => setWidget("search", v)}
+          />
+          <Switch
+            label="Compose"
+            hint="A one-tap button to write a new message"
+            checked={prefs.widgets.compose}
+            onChange={(v) => setWidget("compose", v)}
+          />
+        </section>
+
+        <section className="card">
+          <h2>Widgets while reading mail</h2>
+          <p>
+            Keep your widgets visible in a column beside your messages. It appears on wide
+            screens. On Home, use Rearrange to drag widgets wherever you like.
+          </p>
+          <Switch
+            label="Show widgets beside my mail"
+            checked={prefs.dock}
+            onChange={(dock) => update({ dock })}
+          />
         </section>
 
         <div style={{ marginTop: 20, display: "flex", gap: 12 }}>

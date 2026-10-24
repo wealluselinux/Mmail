@@ -7,17 +7,21 @@ Mmail doesn't host any mail. You sign in with Google and it reads and organizes 
 ## Features
 
 - Sign in with Google (the only way in)
-- Inbox, Starred, Sent, Drafts, Spam and Trash
+- **Compose, reply, reply all and forward** (plain text)
+- **Every Gmail label:** Inbox, Starred, Important, Sent, Drafts, All Mail, Spam, Trash, the five inbox categories, and all of your own labels, with unread counts
 - Search, read, star, archive, trash, mark unread
+- **Sender logos:** Cash App, GitHub and other brands show their logo instead of a letter (fetched by Mmail's server, so your browser never contacts a third party)
+- **Multiple accounts:** link up to 5 Google accounts and switch between them from the avatar menu
 - Material 3 color scheme generated from a single seed color
 - **Customize page:** light, dark or system theme, a color picker with presets, and on/off switches for everything below
-- **Widgets** (Home page): Material You clock (analog or digital), date, weather, unread count and a note of your own
+- **Wallpaper:** upload a picture and Mmail picks matching colors from it, and offers other colors from the image
+- **Widgets:** clock (analog or digital), date, weather, unread count, note, calendar, quick search and compose. Drag them anywhere on the Home page with *Rearrange*, or keep them in a column beside your mail
 - **Optional top bar:** greeting, time and date, weather and unread count across the top of the app
-- Settings sync across your devices (stored in Supabase) and the theme renders with no flash
+- Preferences and wallpaper are saved to your account (stored in Supabase), so they follow you to any device. Each linked account has its own look. The theme renders with no flash
 - Privacy first: remote images in emails are blocked until you allow them, and message HTML is rendered in a sandbox with scripts disabled
 - Google refresh tokens are encrypted (AES-256-GCM) before they are stored
 
-**Planned:** compose and reply, threads, labels, attachments, more widgets.
+**Planned:** threads, attachments, applying labels to messages, rich-text compose, drafts.
 
 ## Tech stack
 
@@ -33,6 +37,8 @@ Next.js (App Router) and TypeScript, Supabase (Postgres) for accounts and encryp
    - `http://localhost:3000/api/auth/callback`
    - `https://YOUR-SERVICE.onrender.com/api/auth/callback`
 4. While the app is in *Testing* mode, add your Google account under **Test users**.
+
+> **Scopes:** Mmail asks for `gmail.modify` (read and organize mail) and `gmail.send` (send mail). Add both under **Data Access** in the Google Auth Platform. If you sign in before adding `gmail.send`, everything works except sending. After adding it, sign out and back in once.
 
 > **Heads up:** Mmail requests the `gmail.modify` scope, which Google classifies as *restricted*. In Testing mode only listed test users (up to 100) can sign in. Opening Mmail to everyone requires Google's app verification and a security assessment.
 
@@ -69,6 +75,8 @@ The repo includes a [`render.yaml`](render.yaml) blueprint. Create a **Web Servi
 - The `users` table has Row Level Security enabled with no policies, so the public anon key can't read it.
 - Sign-in uses the authorization code flow with PKCE and a state check.
 - Saved settings are validated field by field on the server before use, so a tampered value can't reach the page.
+- Outgoing mail headers are stripped of line breaks (blocking header injection), and the send endpoint only accepts JSON requests.
+- Wallpapers are re-encoded in the browser (removing photo metadata) and only real JPEGs are stored. Logo images are served as raster formats only, never SVG.
 - Weather uses Open-Meteo, which needs no account. Only the coordinates of the city you pick are sent to it.
 
 ## Contributing

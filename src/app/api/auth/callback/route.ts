@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encrypt } from "@/lib/crypto";
-import { appUrl, exchangeCode, fetchProfile, SCOPES } from "@/lib/google";
+import { appUrl, exchangeCode, fetchProfile, GMAIL_MODIFY_SCOPE } from "@/lib/google";
 import { PREFS_COOKIE, sanitizePrefs } from "@/lib/prefs";
 import { encodePrefs, prefsCookieOptions } from "@/lib/prefs-server";
 import {
   cookieBase,
   createSessionValue,
+  MAX_ACCOUNTS,
+  parseSessionCookie,
   SESSION_COOKIE,
   sessionMaxAge,
 } from "@/lib/session";
@@ -38,8 +40,7 @@ export async function GET(req: NextRequest) {
 
     // Mmail is useless without Gmail access, so insist on the Gmail scope.
     const granted = tokens.scope.split(" ");
-    const gmailScope = SCOPES.find((s) => s.includes("gmail"))!;
-    if (!granted.includes(gmailScope)) return fail("missing_gmail_scope");
+    if (!granted.includes(GMAIL_MODIFY_SCOPE)) return fail("missing_gmail_scope");
 
     const profile = await fetchProfile(tokens.access_token);
     const db = supabase();
@@ -69,7 +70,12 @@ export async function GET(req: NextRequest) {
     if (error) return fail("database_error");
 
     const res = NextResponse.redirect(`${appUrl()}/mail`);
-    res.cookies.set(SESSION_COOKIE, createSessionValue(profile.sub), {
+    // Signing in while already signed in adds this account to the ones linked in this
+    // browser and makes it the active one.
+    const existing = parseSessionCookie(req.cookies.get(SESSION_COOKIE)?.value);
+    const linked = [...(existing?.subs ?? []).filter((s) => s !== profile.sub), profile.sub];
+    if (linked.length > MAX_ACCOUNTS) return fail("too_many_accounts");
+    res.cookies.set(SESSION_COOKIE, createSessionValue(linked, profile.sub), {
       ...cookieBase,
       maxAge: sessionMaxAge,
     });
@@ -82,6 +88,8 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
     if (saved?.settings && Object.keys(saved.settings).length > 0) {
       res.cookies.set(PREFS_COOKIE, encodePrefs(sanitizePrefs(saved.settings)), prefsCookieOptions);
+    } else {
+      res.cookies.delete(PREFS_COOKIE);
     }
     res.cookies.delete("mmail_oauth_state");
     res.cookies.delete("mmail_oauth_verifier");

@@ -549,50 +549,39 @@ button {
 }
 
 @media (max-width: 1000px) {
-  .app {
-    grid-template-columns: 72px 1fr;
-  }
-  .pane-list,
-  .pane-reader {
-    grid-column: 2;
-    grid-row: 2;
-  }
   .only-narrow {
     display: inline-grid;
   }
-  .nav-label {
-    display: none;
+  .app,
+  .app.has-dock {
+    grid-template-columns: 1fr;
   }
-  .nav-item {
-    justify-content: center;
-    padding: 0;
+  .pane-list,
+  .pane-reader,
+  .pane-board {
+    grid-column: 1;
+    grid-row: 2;
   }
-  .compose-fab span {
-    display: none;
-  }
-  .compose-fab {
-    padding: 0;
-    width: 56px;
-    justify-content: center;
-  }
-  .pane-reader.closed {
-    display: none;
-  }
+  .pane-reader.closed,
   .pane-list.hidden {
     display: none;
   }
-}
-
-@media (max-width: 640px) {
-  .app {
-    grid-template-columns: 1fr;
-  }
+  /* Folders become a slide-over menu opened from the header button. */
   .nav {
     display: none;
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 300px;
+    max-width: 86vw;
+    padding: 16px 12px;
+    background: var(--md-surface-container-low);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   }
-  .pane-list,
-  .pane-reader {
-    grid-column: 1;
+  .nav.open {
+    display: block;
   }
 }
 

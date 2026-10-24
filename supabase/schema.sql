@@ -18,3 +18,12 @@ alter table public.users enable row level security;
 -- Added with the customize page: per-user preferences (theme, widgets, top bar).
 -- Safe to run more than once.
 alter table public.users add column if not exists settings jsonb not null default '{}'::jsonb;
+
+-- Added with wallpapers: one JPEG per account, stored as base64 text.
+-- Kept in its own table so loading a user never drags the image along.
+create table if not exists public.wallpapers (
+  google_sub text primary key references public.users (google_sub) on delete cascade,
+  data       text not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.wallpapers enable row level security;

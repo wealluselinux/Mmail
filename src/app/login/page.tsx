@@ -13,15 +13,18 @@ const ERRORS: Record<string, string> = {
   invalid_state: "That sign-in link expired. Please try again.",
   no_refresh_token: "Google didn't grant long-lived access. Please try again.",
   database_error: "Something went wrong saving your account. Please try again.",
+  too_many_accounts: "You can link up to 5 accounts. Remove one first, then add another.",
   sign_in_failed: "Sign-in failed. Please try again.",
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   // If we can't reach the database (e.g. missing config), still show the page.
   const user = await getSessionUser().catch(() => null);
-  if (user) redirect("/mail");
-
   const { error } = await searchParams;
+  // Signed-in visitors go to their mail, unless they were sent here to see an error
+  // (for example after trying to add an account).
+  if (user && !error) redirect("/mail");
+
   const message = typeof error === "string" ? (ERRORS[error] ?? ERRORS.sign_in_failed) : null;
 
   return (

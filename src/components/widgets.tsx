@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useInboxStats, useNow, useWeather } from "@/lib/hooks";
-import type { Prefs } from "@/lib/prefs";
+import { enabledKeys, orderedKeys, resolveLayout, sizeOf } from "@/lib/layout";
+import type { Prefs, WidgetKey, WidgetPosition } from "@/lib/prefs";
 import { Icon } from "./Icon";
 
 /* ---------- shapes ---------- */
@@ -212,7 +213,14 @@ export function WeatherWidget({ prefs }: { prefs: Prefs }) {
   );
 }
 
-/* ---------- unread + note ---------- */
+/* ---------- unread, note, calendar, search, compose ---------- */
+
+/** Things widgets can ask the mail screen to do. All optional. */
+export type WidgetActions = {
+  openInbox?: () => void;
+  search?: (query: string) => void;
+  compose?: () => void;
+};
 
 export function UnreadWidget({ onOpen }: { onOpen?: () => void }) {
   const stats = useInboxStats();
@@ -245,32 +253,228 @@ export function NoteWidget({ text }: { text: string }) {
   );
 }
 
-/* ---------- board ---------- */
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
-export function WidgetBoard({ prefs, onOpenInbox }: { prefs: Prefs; onOpenInbox?: () => void }) {
-  const w = prefs.widgets;
-  const any = Object.values(w).some(Boolean);
+export function CalendarWidget() {
+  const now = useNow();
+  const [offset, setOffset] = useState(0);
 
-  if (!any) {
-    return (
-      <div className="empty">
-        <div>
-          <p>No widgets are turned on.</p>
-          <Link href="/customize" className="btn btn-tonal">
-            Open Customize
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const base = now ?? new Date(2026, 0, 1);
+  const view = new Date(base.getFullYear(), base.getMonth() + offset, 1);
+  const first = view.getDay();
+  const days = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+  const isThisMonth = offset === 0 && !!now;
+  const today = now?.getDate();
+
+  const cells: (number | null)[] = [
+    ...Array.from({ length: first }, () => null),
+    ...Array.from({ length: days }, (_, i) => i + 1),
+  ];
 
   return (
-    <div className="board">
-      {w.clock && <ClockWidget style={prefs.clockStyle} />}
-      {w.date && <DateWidget />}
-      {w.weather && <WeatherWidget prefs={prefs} />}
-      {w.unread && <UnreadWidget onOpen={onOpenInbox} />}
-      {w.note && <NoteWidget text={prefs.note} />}
+    <div className="widget w-calendar">
+      <div className="w-cal-head">
+        <button className="icon-btn" aria-label="Previous month" onClick={() => setOffset((o) => o - 1)}>
+          <Icon name="chevronLeft" />
+        </button>
+        <button
+          className="w-cal-title"
+          title="Back to this month"
+          onClick={() => setOffset(0)}
+        >
+          {view.toLocaleDateString([], { month: "long", year: "numeric" })}
+        </button>
+        <button className="icon-btn" aria-label="Next month" onClick={() => setOffset((o) => o + 1)}>
+          <Icon name="chevronRight" />
+        </button>
+      </div>
+      <div className="w-cal-grid" role="grid">
+        {WEEKDAYS.map((d, i) => (
+          <span key={i} className="w-cal-dow">
+            {d}
+          </span>
+        ))}
+        {cells.map((d, i) => (
+          <span
+            key={i}
+            className={`w-cal-day${isThisMonth && d === today ? " today" : ""}`}
+            aria-current={isThisMonth && d === today ? "date" : undefined}
+          >
+            {d ?? ""}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function SearchWidget({ onSearch }: { onSearch?: (q: string) => void }) {
+  const [q, setQ] = useState("");
+  return (
+    <form
+      className="widget w-search"
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (q.trim()) onSearch?.(q.trim());
+      }}
+    >
+      <Icon name="search" size={22} />
+      <input
+        type="search"
+        placeholder="Search all mail"
+        aria-label="Search all mail"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+    </form>
+  );
+}
+
+export function ComposeWidget({ onCompose }: { onCompose?: () => void }) {
+  return (
+    <button className="widget w-compose" onClick={onCompose}>
+      <Icon name="edit" size={22} />
+      Write a message
+    </button>
+  );
+}
+
+/* ---------- placing widgets ---------- */
+
+export function renderWidget(key: WidgetKey, prefs: Prefs, actions: WidgetActions) {
+  switch (key) {
+    case "clock":
+      return <ClockWidget style={prefs.clockStyle} />;
+    case "date":
+      return <DateWidget />;
+    case "weather":
+      return <WeatherWidget prefs={prefs} />;
+    case "unread":
+      return <UnreadWidget onOpen={actions.openInbox} />;
+    case "note":
+      return <NoteWidget text={prefs.note} />;
+    case "calendar":
+      return <CalendarWidget />;
+    case "search":
+      return <SearchWidget onSearch={actions.search} />;
+    case "compose":
+      return <ComposeWidget onCompose={actions.compose} />;
+  }
+}
+
+function EmptyBoard() {
+  return (
+    <div className="empty">
+      <div>
+        <p>No widgets are turned on.</p>
+        <Link href="/customize" className="btn btn-tonal">
+          Open Customize
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+const snap = (n: number) => Math.round(n / 10) * 10;
+const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
+
+/**
+ * The Home board. Widgets sit wherever you put them. Switch on "Rearrange" to
+ * drag them around; they snap to a 10px grid and the spots are saved to your account.
+ */
+export function WidgetCanvas({
+  prefs,
+  actions,
+  editing,
+  onMove,
+}: {
+  prefs: Prefs;
+  actions: WidgetActions;
+  editing: boolean;
+  onMove: (key: WidgetKey, pos: WidgetPosition) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [drag, setDrag] = useState<{ key: WidgetKey; x: number; y: number } | null>(null);
+  const grab = useRef<{ key: WidgetKey; dx: number; dy: number } | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setWidth(el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const keys = enabledKeys(prefs);
+  if (keys.length === 0) return <EmptyBoard />;
+
+  const positions = resolveLayout(prefs, width);
+  const bottom = keys.reduce((max, k) => {
+    const p = drag?.key === k ? drag : positions[k]!;
+    return Math.max(max, p.y + sizeOf(k, prefs).h);
+  }, 0);
+
+  return (
+    <div
+      ref={ref}
+      className={`canvas${editing ? " editing" : ""}`}
+      style={{ minHeight: bottom + 48 }}
+    >
+      {keys.map((key) => {
+        const pos = drag?.key === key ? drag : positions[key]!;
+        const { w } = sizeOf(key, prefs);
+        const maxX = Math.max(0, width - w - 8);
+        return (
+          <div
+            key={key}
+            className={`cw${drag?.key === key ? " dragging" : ""}`}
+            style={{ left: pos.x, top: pos.y }}
+            onPointerDown={(e) => {
+              if (!editing) return;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              grab.current = { key, dx: e.clientX - pos.x, dy: e.clientY - pos.y };
+              setDrag({ key, x: pos.x, y: pos.y });
+            }}
+            onPointerMove={(e) => {
+              const g = grab.current;
+              if (!g || g.key !== key) return;
+              setDrag({
+                key,
+                x: clamp(e.clientX - g.dx, 0, maxX),
+                y: clamp(e.clientY - g.dy, 0, 4000),
+              });
+            }}
+            onPointerUp={() => {
+              if (grab.current && drag) onMove(key, { x: snap(drag.x), y: snap(drag.y) });
+              grab.current = null;
+              setDrag(null);
+            }}
+            onPointerCancel={() => {
+              grab.current = null;
+              setDrag(null);
+            }}
+          >
+            {renderWidget(key, prefs, actions)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The enabled widgets stacked in a column, shown beside your mail when the dock is on. */
+export function WidgetStack({ prefs, actions }: { prefs: Prefs; actions: WidgetActions }) {
+  const keys = orderedKeys(prefs);
+  if (keys.length === 0) return <EmptyBoard />;
+  return (
+    <div className="stack">
+      {keys.map((key) => (
+        <div key={key} className="stack-item">
+          {renderWidget(key, prefs, actions)}
+        </div>
+      ))}
     </div>
   );
 }

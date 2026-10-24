@@ -3,12 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AccountMenu, type AccountInfo } from "./AccountMenu";
+import { ComposeDialog, type ComposeRequest } from "./ComposeDialog";
 import { Icon, type IconName } from "./Icon";
 import { usePrefs } from "./PrefsProvider";
-import { WidgetBoard } from "./widgets";
+import { SenderAvatar } from "./SenderAvatar";
+import { WidgetCanvas, WidgetStack, type WidgetActions } from "./widgets";
+import { enabledKeys } from "@/lib/layout";
 
 type Summary = {
   id: string;
+  threadId: string;
   from: string;
   fromEmail: string;
   subject: string;
@@ -18,22 +23,51 @@ type Summary = {
   starred: boolean;
 };
 
-type Detail = Summary & { to: string; html: string | null; text: string | null };
+type Detail = Summary & {
+  to: string;
+  cc: string;
+  replyTo: string;
+  messageId: string;
+  references: string;
+  html: string | null;
+  text: string | null;
+};
 
-type MailFolder = "INBOX" | "STARRED" | "SENT" | "DRAFT" | "SPAM" | "TRASH";
-/** HOME is the widget board, not a Gmail folder. */
-type Mailbox = MailFolder | "HOME";
+type LabelInfo = {
+  id: string;
+  name: string;
+  kind: "system" | "category" | "user";
+  unread: number;
+  total: number;
+};
 
-const NAV: { id: MailFolder; label: string; icon: IconName }[] = [
+type Folder = { id: string; label: string; icon: IconName };
+
+const SYSTEM_FOLDERS: Folder[] = [
   { id: "INBOX", label: "Inbox", icon: "inbox" },
   { id: "STARRED", label: "Starred", icon: "star" },
+  { id: "IMPORTANT", label: "Important", icon: "important" },
   { id: "SENT", label: "Sent", icon: "send" },
   { id: "DRAFT", label: "Drafts", icon: "draft" },
+  { id: "ALL", label: "All Mail", icon: "mail" },
   { id: "SPAM", label: "Spam", icon: "spam" },
   { id: "TRASH", label: "Trash", icon: "delete" },
 ];
 
-type User = { email: string; name: string | null; picture: string | null };
+const CATEGORY_FOLDERS: Folder[] = [
+  { id: "CATEGORY_PERSONAL", label: "Primary", icon: "person" },
+  { id: "CATEGORY_SOCIAL", label: "Social", icon: "group" },
+  { id: "CATEGORY_PROMOTIONS", label: "Promotions", icon: "label" },
+  { id: "CATEGORY_UPDATES", label: "Updates", icon: "info" },
+  { id: "CATEGORY_FORUMS", label: "Forums", icon: "forum" },
+];
+
+const CHAT_FOLDER: Folder = { id: "CHAT", label: "Chats", icon: "chat" };
+
+/** Folders where "archive" makes no sense. */
+const NO_ARCHIVE = new Set(["SENT", "DRAFT", "TRASH"]);
+
+type User = { sub: string; email: string; name: string | null; picture: string | null };
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -45,10 +79,6 @@ function formatDate(iso: string): string {
     return d.toLocaleDateString([], { month: "short", day: "numeric" });
   }
   return d.toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
-}
-
-function initial(name: string): string {
-  return (name.trim()[0] ?? "?").toUpperCase();
 }
 
 function escapeHtml(s: string): string {
@@ -83,11 +113,32 @@ function buildSrcDoc(detail: Detail, loadImages: boolean): string {
 </style></head><body>${body}</body></html>`;
 }
 
-export function Inbox({ user }: { user: User }) {
+function NavItem({
+  folder,
+  active,
+  badge,
+  onClick,
+}: {
+  folder: Folder;
+  active: boolean;
+  badge?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button className="nav-item" aria-current={active} onClick={onClick}>
+      <Icon name={folder.icon} />
+      <span className="nav-label">{folder.label}</span>
+      {!!badge && <span className="nav-badge">{badge > 999 ? "999+" : badge}</span>}
+    </button>
+  );
+}
+
+export function Inbox({ user, accounts }: { user: User; accounts: AccountInfo[] }) {
   const router = useRouter();
-  const { prefs } = usePrefs();
-  const hasWidgets = Object.values(prefs.widgets).some(Boolean);
-  const [mailbox, setMailbox] = useState<Mailbox>("INBOX");
+  const { prefs, update } = usePrefs();
+  const hasWidgets = enabledKeys(prefs).length > 0;
+
+  const [mailbox, setMailbox] = useState<string>("INBOX");
   const [query, setQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [messages, setMessages] = useState<Summary[]>([]);
@@ -101,15 +152,37 @@ export function Inbox({ user }: { user: User }) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [loadImages, setLoadImages] = useState(false);
 
-  const handleAuthError = useCallback((status: number) => {
-    if (status === 401) {
-      router.push("/login");
-      return true;
-    }
-    return false;
-  }, [router]);
+  const [labels, setLabels] = useState<LabelInfo[]>([]);
+  const [navOpen, setNavOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [compose, setCompose] = useState<{ req: ComposeRequest; key: number } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  // Load the message list whenever the mailbox, search, or reload key changes.
+  const handleAuthError = useCallback(
+    (status: number) => {
+      if (status === 401) {
+        router.push("/login");
+        return true;
+      }
+      return false;
+    },
+    [router],
+  );
+
+  // Labels (with counts) load on start and refresh every two minutes.
+  const loadLabels = useCallback(() => {
+    fetch("/api/mail/labels")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setLabels(d.labels))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    loadLabels();
+    const id = setInterval(loadLabels, 120_000);
+    return () => clearInterval(id);
+  }, [loadLabels]);
+
+  // Load the message list whenever the folder, search, or reload key changes.
   useEffect(() => {
     if (mailbox === "HOME") return;
     const controller = new AbortController();
@@ -135,17 +208,31 @@ export function Inbox({ user }: { user: User }) {
     return () => controller.abort();
   }, [mailbox, activeQuery, reloadKey, handleAuthError]);
 
-  function switchMailbox(next: Mailbox) {
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(id);
+  }, [toast]);
+
+  /** Opens a folder (or the Home board), optionally with a search already applied. */
+  function go(next: string, q = "") {
     setLoading(next !== "HOME");
     setMessages([]);
+    setNextPage(null);
     setSelectedId(null);
     setDetail(null);
+    setError(null);
     setMailbox(next);
+    setQuery(q);
+    setActiveQuery(q);
+    setNavOpen(false);
+    setEditing(false);
   }
 
   function reload() {
     setLoading(true);
     setReloadKey((k) => k + 1);
+    loadLabels();
   }
 
   async function loadMore() {
@@ -186,7 +273,7 @@ export function Inbox({ user }: { user: User }) {
     setDetailLoading(false);
     if (data.unread) {
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, unread: false } : m)));
-      void patch(id, "read");
+      void patch(id, "read").then(loadLabels);
     }
   }
 
@@ -203,6 +290,7 @@ export function Inbox({ user }: { user: User }) {
       setMessages((prev) => prev.filter((m) => m.id !== id));
       setSelectedId(null);
       setDetail(null);
+      loadLabels();
     } else {
       setError("That didn't work. Please try again.");
     }
@@ -213,24 +301,67 @@ export function Inbox({ user }: { user: User }) {
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, unread: true } : m)));
       setSelectedId(null);
       setDetail(null);
+      loadLabels();
     }
   }
+
+  const openCompose = useCallback(
+    (req: ComposeRequest) => setCompose({ req, key: Date.now() }),
+    [],
+  );
+
+  const actions: WidgetActions = useMemo(
+    () => ({
+      openInbox: () => go("INBOX"),
+      search: (q) => go("ALL", q),
+      compose: () => openCompose({ mode: "new" }),
+    }),
+    // go() only sets state, so it is safe to omit
+    [openCompose],
+  );
 
   const srcDoc = useMemo(
     () => (detail ? buildSrcDoc(detail, loadImages) : ""),
     [detail, loadImages],
   );
-  const displayName = user.name ?? user.email;
-  const mailboxLabel = mailbox === "HOME" ? "Home" : NAV.find((n) => n.id === mailbox)!.label;
+
+  const countOf = (id: string) => labels.find((l) => l.id === id);
+  const hasChats = (countOf("CHAT")?.total ?? 0) > 0;
+  const systemFolders = hasChats
+    ? [...SYSTEM_FOLDERS.slice(0, 5), CHAT_FOLDER, ...SYSTEM_FOLDERS.slice(5)]
+    : SYSTEM_FOLDERS;
+  const userLabels = labels.filter((l) => l.kind === "user").sort((a, b) => a.name.localeCompare(b.name));
+
+  const folderLabel =
+    mailbox === "HOME"
+      ? "Home"
+      : ([...SYSTEM_FOLDERS, ...CATEGORY_FOLDERS, CHAT_FOLDER].find((f) => f.id === mailbox)?.label ??
+        userLabels.find((l) => l.id === mailbox)?.name ??
+        "Mail");
+
+  const showDock = prefs.dock && hasWidgets && mailbox !== "HOME";
+  const badgeFor = (id: string) => {
+    const l = countOf(id);
+    if (!l) return undefined;
+    return id === "DRAFT" ? l.total : l.unread;
+  };
 
   return (
-    <div className="app">
+    <div className={`app${showDock ? " has-dock" : ""}`}>
       <header className="app-top">
+        <button
+          className="icon-btn only-narrow"
+          onClick={() => setNavOpen((o) => !o)}
+          aria-label="Menu"
+          title="Menu"
+        >
+          <Icon name="menu" />
+        </button>
         <div className="brand">
           <span className="brand-mark">
             <Icon name="mail" size={22} />
           </span>
-          <span className="nav-label">Mmail</span>
+          <span className="brand-name">Mmail</span>
         </div>
 
         <form
@@ -238,17 +369,13 @@ export function Inbox({ user }: { user: User }) {
           role="search"
           onSubmit={(e) => {
             e.preventDefault();
-            if (mailbox === "HOME") setMailbox("INBOX");
-            setLoading(true);
-            setSelectedId(null);
-            setDetail(null);
-            setActiveQuery(query.trim());
+            go(mailbox === "HOME" ? "ALL" : mailbox, query.trim());
           }}
         >
           <Icon name="search" size={22} />
           <input
             type="search"
-            placeholder={mailbox === "HOME" ? "Search mail" : `Search ${mailboxLabel.toLowerCase()}`}
+            placeholder={mailbox === "HOME" ? "Search mail" : `Search ${folderLabel.toLowerCase()}`}
             aria-label="Search mail"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -256,46 +383,60 @@ export function Inbox({ user }: { user: User }) {
         </form>
 
         <div className="account">
-          <span className="avatar" title={user.email}>
-            {user.picture ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.picture} alt="" referrerPolicy="no-referrer" />
-            ) : (
-              initial(displayName)
-            )}
-          </span>
           <Link href="/customize" className="icon-btn" title="Customize" aria-label="Customize">
             <Icon name="settings" />
           </Link>
-          <form action="/api/auth/logout" method="post">
-            <button className="icon-btn" type="submit" title="Sign out" aria-label="Sign out">
-              <Icon name="logout" />
-            </button>
-          </form>
+          <AccountMenu accounts={accounts} activeSub={user.sub} />
         </div>
       </header>
 
-      <nav className="nav" aria-label="Mailboxes">
+      {navOpen && <div className="scrim" onClick={() => setNavOpen(false)} />}
+      <nav className={`nav${navOpen ? " open" : ""}`} aria-label="Mailboxes">
+        <button className="compose-fab" onClick={() => openCompose({ mode: "new" })}>
+          <Icon name="edit" />
+          <span>Compose</span>
+        </button>
+
         {hasWidgets && (
-          <button
-            className="nav-item"
-            aria-current={mailbox === "HOME"}
-            onClick={() => switchMailbox("HOME")}
-          >
-            <Icon name="home" />
-            <span className="nav-label">Home</span>
-          </button>
+          <NavItem
+            folder={{ id: "HOME", label: "Home", icon: "home" }}
+            active={mailbox === "HOME"}
+            onClick={() => go("HOME")}
+          />
         )}
-        {NAV.map((item) => (
-          <button
-            key={item.id}
-            className="nav-item"
-            aria-current={mailbox === item.id}
-            onClick={() => switchMailbox(item.id)}
-          >
-            <Icon name={item.icon} />
-            <span className="nav-label">{item.label}</span>
-          </button>
+        {systemFolders.map((f) => (
+          <NavItem
+            key={f.id}
+            folder={f}
+            active={mailbox === f.id}
+            badge={badgeFor(f.id)}
+            onClick={() => go(f.id)}
+          />
+        ))}
+
+        <details className="nav-group" open={CATEGORY_FOLDERS.some((f) => f.id === mailbox) || undefined}>
+          <summary>Categories</summary>
+          {CATEGORY_FOLDERS.map((f) => (
+            <NavItem
+              key={f.id}
+              folder={f}
+              active={mailbox === f.id}
+              badge={badgeFor(f.id)}
+              onClick={() => go(f.id)}
+            />
+          ))}
+        </details>
+
+        <div className="nav-heading">Labels</div>
+        {userLabels.length === 0 && <p className="nav-empty">No labels yet</p>}
+        {userLabels.map((l) => (
+          <NavItem
+            key={l.id}
+            folder={{ id: l.id, label: l.name, icon: "label" }}
+            active={mailbox === l.id}
+            badge={l.unread}
+            onClick={() => go(l.id)}
+          />
         ))}
       </nav>
 
@@ -303,143 +444,218 @@ export function Inbox({ user }: { user: User }) {
         <section className="pane pane-board" aria-label="Home">
           <div className="pane-head">
             <span>Home</span>
+            <span className="pane-tools">
+              {editing && (
+                <button className="btn btn-text" onClick={() => update({ layout: {} })}>
+                  Reset layout
+                </button>
+              )}
+              <button
+                className={`btn ${editing ? "btn-filled" : "btn-tonal"}`}
+                style={{ height: 40 }}
+                onClick={() => setEditing((e) => !e)}
+              >
+                <Icon name={editing ? "check" : "move"} size={18} />
+                {editing ? "Done" : "Rearrange"}
+              </button>
+            </span>
           </div>
-          <WidgetBoard prefs={prefs} onOpenInbox={() => switchMailbox("INBOX")} />
+          <div className="board">
+            <WidgetCanvas
+              prefs={prefs}
+              actions={actions}
+              editing={editing}
+              onMove={(key, pos) => update((p) => ({ layout: { ...p.layout, [key]: pos } }))}
+            />
+          </div>
         </section>
       ) : (
-      <>
-      <section className={`pane pane-list${selectedId ? " hidden" : ""}`} aria-label="Messages">
-        <div className="pane-head">
-          <span>{activeQuery ? `Results for “${activeQuery}”` : mailboxLabel}</span>
-          <button className="icon-btn" onClick={reload} title="Refresh" aria-label="Refresh">
-            <Icon name="refresh" />
-          </button>
-        </div>
-        {error && (
-          <div className="banner" role="alert">
-            {error}
-            <button onClick={() => setError(null)}>Dismiss</button>
-          </div>
-        )}
-        <div className="list">
-          {loading && <div className="empty">Loading…</div>}
-          {!loading && messages.length === 0 && !error && (
-            <div className="empty">
-              {activeQuery ? "No messages match your search." : "Nothing here yet."}
+        <>
+          <section className={`pane pane-list${selectedId ? " hidden" : ""}`} aria-label="Messages">
+            <div className="pane-head">
+              <span>{activeQuery ? `Results for “${activeQuery}”` : folderLabel}</span>
+              <button className="icon-btn" onClick={reload} title="Refresh" aria-label="Refresh">
+                <Icon name="refresh" />
+              </button>
             </div>
-          )}
-          {messages.map((m) => (
-            <button
-              key={m.id}
-              className={`row${m.unread ? " unread" : ""}`}
-              aria-current={selectedId === m.id}
-              onClick={() => open(m.id)}
-            >
-              <span className="avatar">{initial(m.from)}</span>
-              <span className="row-from">{m.from}</span>
-              <span className="row-date">{formatDate(m.date)}</span>
-              <span className="row-subject">{m.subject}</span>
-              <span className="row-snippet">{m.snippet}</span>
-            </button>
-          ))}
-          {nextPage && !loading && (
-            <button className="btn btn-tonal" style={{ margin: "12px auto" }} onClick={loadMore}>
-              Load more
-            </button>
-          )}
-        </div>
-      </section>
-
-      <section className={`pane pane-reader${selectedId ? "" : " closed"}`} aria-label="Message">
-        {!selectedId && (
-          <div className="empty">
-            <div>
-              <Icon name="mail" size={56} />
-              <p>Select a message to read it</p>
-            </div>
-          </div>
-        )}
-        {selectedId && detailLoading && <div className="empty">Opening…</div>}
-        {detail && (
-          <div className="reader">
-            <div className="reader-head">
-              <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-                <button
-                  className="icon-btn only-narrow"
-                  onClick={() => {
-                    setSelectedId(null);
-                    setDetail(null);
-                  }}
-                  title="Back"
-                  aria-label="Back to list"
-                >
-                  <Icon name="back" />
-                </button>
-                {mailbox !== "TRASH" && mailbox !== "SENT" && mailbox !== "DRAFT" && (
-                  <button
-                    className="icon-btn"
-                    onClick={() => remove(detail.id, "archive")}
-                    title="Archive"
-                    aria-label="Archive"
-                  >
-                    <Icon name="archive" />
-                  </button>
-                )}
-                <button
-                  className="icon-btn"
-                  onClick={() => remove(detail.id, "trash")}
-                  title="Move to trash"
-                  aria-label="Move to trash"
-                >
-                  <Icon name="delete" />
-                </button>
-                <button
-                  className="icon-btn"
-                  onClick={() => markUnread(detail.id)}
-                  title="Mark as unread"
-                  aria-label="Mark as unread"
-                >
-                  <Icon name="mail" />
-                </button>
-              </div>
-              <h2>{detail.subject}</h2>
-              <div className="reader-meta">
-                <span className="avatar">{initial(detail.from)}</span>
-                <div className="who">
-                  <strong>{detail.from}</strong>
-                  <span>
-                    {detail.fromEmail} · {new Date(detail.date).toLocaleString()}
-                  </span>
-                </div>
-                <button
-                  className="icon-btn"
-                  onClick={() => toggleStar(detail)}
-                  title={detail.starred ? "Remove star" : "Add star"}
-                  aria-label={detail.starred ? "Remove star" : "Add star"}
-                  style={detail.starred ? { color: "var(--md-primary)" } : undefined}
-                >
-                  <Icon name={detail.starred ? "star" : "starBorder"} />
-                </button>
-              </div>
-            </div>
-            {!loadImages && hasRemoteImages(detail.html) && (
-              <div className="banner">
-                Images are hidden to protect your privacy.
-                <button onClick={() => setLoadImages(true)}>Show images</button>
+            {error && (
+              <div className="banner" role="alert">
+                {error}
+                <button onClick={() => setError(null)}>Dismiss</button>
               </div>
             )}
-            <div className="reader-body">
-              <iframe
-                title={`Message: ${detail.subject}`}
-                sandbox="allow-popups allow-popups-to-escape-sandbox"
-                referrerPolicy="no-referrer"
-                srcDoc={srcDoc}
-              />
+            <div className="list">
+              {loading && <div className="empty">Loading…</div>}
+              {!loading && messages.length === 0 && !error && (
+                <div className="empty">
+                  {activeQuery ? "No messages match your search." : "Nothing here yet."}
+                </div>
+              )}
+              {messages.map((m) => (
+                <button
+                  key={m.id}
+                  className={`row${m.unread ? " unread" : ""}`}
+                  aria-current={selectedId === m.id}
+                  onClick={() => open(m.id)}
+                >
+                  <SenderAvatar name={m.from} email={m.fromEmail} />
+                  <span className="row-from">{m.from}</span>
+                  <span className="row-date">{formatDate(m.date)}</span>
+                  <span className="row-subject">{m.subject}</span>
+                  <span className="row-snippet">{m.snippet}</span>
+                </button>
+              ))}
+              {nextPage && !loading && (
+                <button className="btn btn-tonal" style={{ margin: "12px auto" }} onClick={loadMore}>
+                  Load more
+                </button>
+              )}
             </div>
-          </div>
-        )}
-      </section>
-      </>
+          </section>
+
+          <section className={`pane pane-reader${selectedId ? "" : " closed"}`} aria-label="Message">
+            {!selectedId && (
+              <div className="empty">
+                <div>
+                  <Icon name="mail" size={56} />
+                  <p>Select a message to read it</p>
+                </div>
+              </div>
+            )}
+            {selectedId && detailLoading && <div className="empty">Opening…</div>}
+            {detail && (
+              <div className="reader">
+                <div className="reader-head">
+                  <div className="reader-actions">
+                    <button
+                      className="icon-btn only-narrow"
+                      onClick={() => {
+                        setSelectedId(null);
+                        setDetail(null);
+                      }}
+                      title="Back"
+                      aria-label="Back to list"
+                    >
+                      <Icon name="back" />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      onClick={() => openCompose({ mode: "reply", original: detail })}
+                      title="Reply"
+                      aria-label="Reply"
+                    >
+                      <Icon name="reply" />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      onClick={() => openCompose({ mode: "replyAll", original: detail })}
+                      title="Reply all"
+                      aria-label="Reply all"
+                    >
+                      <Icon name="replyAll" />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      onClick={() => openCompose({ mode: "forward", original: detail })}
+                      title="Forward"
+                      aria-label="Forward"
+                    >
+                      <Icon name="forward" />
+                    </button>
+                    <span className="reader-actions-gap" />
+                    {!NO_ARCHIVE.has(mailbox) && (
+                      <button
+                        className="icon-btn"
+                        onClick={() => remove(detail.id, "archive")}
+                        title="Archive"
+                        aria-label="Archive"
+                      >
+                        <Icon name="archive" />
+                      </button>
+                    )}
+                    <button
+                      className="icon-btn"
+                      onClick={() => remove(detail.id, "trash")}
+                      title="Move to trash"
+                      aria-label="Move to trash"
+                    >
+                      <Icon name="delete" />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      onClick={() => markUnread(detail.id)}
+                      title="Mark as unread"
+                      aria-label="Mark as unread"
+                    >
+                      <Icon name="mail" />
+                    </button>
+                  </div>
+                  <h2>{detail.subject}</h2>
+                  <div className="reader-meta">
+                    <SenderAvatar key={detail.id} name={detail.from} email={detail.fromEmail} />
+                    <div className="who">
+                      <strong>{detail.from}</strong>
+                      <span>
+                        {detail.fromEmail} · {new Date(detail.date).toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                      className="icon-btn"
+                      onClick={() => toggleStar(detail)}
+                      title={detail.starred ? "Remove star" : "Add star"}
+                      aria-label={detail.starred ? "Remove star" : "Add star"}
+                      style={detail.starred ? { color: "var(--md-primary)" } : undefined}
+                    >
+                      <Icon name={detail.starred ? "star" : "starBorder"} />
+                    </button>
+                  </div>
+                </div>
+                {!loadImages && hasRemoteImages(detail.html) && (
+                  <div className="banner">
+                    Images are hidden to protect your privacy.
+                    <button onClick={() => setLoadImages(true)}>Show images</button>
+                  </div>
+                )}
+                <div className="reader-body">
+                  <iframe
+                    title={`Message: ${detail.subject}`}
+                    sandbox="allow-popups allow-popups-to-escape-sandbox"
+                    referrerPolicy="no-referrer"
+                    srcDoc={srcDoc}
+                  />
+                </div>
+              </div>
+            )}
+          </section>
+
+          {showDock && (
+            <aside className="pane pane-dock" aria-label="Widgets">
+              <div className="pane-head">
+                <span>Widgets</span>
+              </div>
+              <WidgetStack prefs={prefs} actions={actions} />
+            </aside>
+          )}
+        </>
+      )}
+
+      {compose && (
+        <ComposeDialog
+          key={compose.key}
+          request={compose.req}
+          me={user.email}
+          onClose={() => setCompose(null)}
+          onSent={() => {
+            setCompose(null);
+            setToast("Message sent");
+            if (mailbox === "SENT") reload();
+          }}
+        />
+      )}
+      {toast && (
+        <div className="snackbar" role="status">
+          {toast}
+        </div>
       )}
     </div>
   );

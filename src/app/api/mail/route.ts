@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GmailError, isMailbox, listMessages } from "@/lib/gmail";
+import { GmailError, isMailboxId, listMessages } from "@/lib/gmail";
 import { getAccessToken, getSessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "reauth_required" }, { status: 401 });
 
   const params = req.nextUrl.searchParams;
-  const mailbox = (params.get("mailbox") ?? "INBOX").toUpperCase();
-  if (!isMailbox(mailbox)) {
+  const mailbox = params.get("mailbox") ?? "INBOX";
+  if (!isMailboxId(mailbox)) {
     return NextResponse.json({ error: "invalid_mailbox" }, { status: 400 });
   }
 

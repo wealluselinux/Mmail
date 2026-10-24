@@ -4,13 +4,13 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
 
-/** gmail.modify lets Mmail read mail and change labels (read/unread, star, archive, trash). */
-export const SCOPES = [
-  "openid",
-  "email",
-  "profile",
-  "https://www.googleapis.com/auth/gmail.modify",
-];
+/**
+ * gmail.modify lets Mmail read mail and change labels (read/unread, star, archive, trash).
+ * gmail.send lets it send what you compose, reply to and forward.
+ */
+export const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
+export const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
+export const SCOPES = ["openid", "email", "profile", GMAIL_MODIFY_SCOPE, GMAIL_SEND_SCOPE];
 
 function env(name: string): string {
   const v = process.env[name];
