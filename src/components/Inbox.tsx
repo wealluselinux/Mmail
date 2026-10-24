@@ -361,7 +361,7 @@ export function Inbox({ user, accounts }: { user: User; accounts: AccountInfo[] 
           <span className="brand-mark">
             <Icon name="mail" size={22} />
           </span>
-          <span className="brand-name">Mmail</span>
+          <span className="brand-name">Material Mail</span>
         </div>
 
         <form

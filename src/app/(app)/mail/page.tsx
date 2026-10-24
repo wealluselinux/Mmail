@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Inbox } from "@/components/Inbox";
 import { getLinkedAccounts, getSessionUser } from "@/lib/session";
 
-export const metadata = { title: "Inbox · Mmail" };
+export const metadata = { title: "Inbox · Material Mail" };
 export const dynamic = "force-dynamic";
 
 export default async function MailPage() {

@@ -1,4 +1,4 @@
-/* ---------- Mmail design tokens (Material 3 / Material You) ---------- */
+/* ---------- Material Mail design tokens (Material 3 / Material You) ---------- */
 :root {
   /* Derived surface tones, tinted by the primary color like M3 surface containers */
   --md-surface-container-lowest: color-mix(in srgb, var(--md-surface) 96%, var(--md-primary) 0%);
@@ -589,4 +589,66 @@ button {
   * {
     transition: none !important;
   }
+}
+
+/* ---------- Legal pages and footer links ---------- */
+.footer p {
+  margin: 8px auto 0;
+  max-width: 640px;
+}
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 24px;
+  font-weight: 500;
+}
+.login-note a {
+  color: var(--md-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legal {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px clamp(20px, 5vw, 32px) 48px;
+  line-height: 1.65;
+}
+.legal h1 {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 6vw, 44px);
+  margin: 8px 0 4px;
+}
+.legal h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 36px 0 8px;
+}
+.legal p,
+.legal li {
+  color: var(--md-on-surface);
+  max-width: none;
+}
+.legal ul {
+  padding-left: 22px;
+}
+.legal li {
+  margin: 6px 0;
+}
+.legal a {
+  color: var(--md-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.legal code {
+  font-size: 0.9em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--md-surface-container-high);
+}
+.legal-updated {
+  color: var(--md-on-surface-variant);
+  margin-top: 0;
 }

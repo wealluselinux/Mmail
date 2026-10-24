@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
-
-const REPO_URL = "https://github.com/wealluselinux/Mmail";
+import { LegalFooter, REPO_URL } from "@/components/LegalPage";
 
 export default function Home() {
   return (
@@ -11,7 +10,7 @@ export default function Home() {
           <span className="brand-mark">
             <Icon name="mail" size={22} />
           </span>
-          Mmail
+          Material Mail
         </Link>
         <Link href="/login" className="btn btn-tonal">
           Sign in
@@ -25,7 +24,7 @@ export default function Home() {
             Gmail, <em>redesigned</em> with Material You.
           </h1>
           <p>
-            Mmail is a calm, beautiful email client for your Gmail account. No ads, no
+            Material Mail is a calm, beautiful email client for your Gmail account. No ads, no
             clutter, just your mail in a design that feels like your phone.
           </p>
           <div className="hero-actions">
@@ -54,13 +53,7 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="footer">
-        Mmail is fully open source. Read the code, run your own copy, or contribute on{" "}
-        <a href={REPO_URL} target="_blank" rel="noreferrer">
-          GitHub
-        </a>
-        .
-      </footer>
+      <LegalFooter />
     </div>
   );
 }

@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   try {
     const tokens = await exchangeCode(code, verifier);
 
-    // Mmail is useless without Gmail access, so insist on the Gmail scope.
+    // Material Mail is useless without Gmail access, so insist on the Gmail scope.
     const granted = tokens.scope.split(" ");
     if (!granted.includes(GMAIL_MODIFY_SCOPE)) return fail("missing_gmail_scope");
 

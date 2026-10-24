@@ -1,8 +1,8 @@
-# Mmail
+# Material Mail
 
 A free, open-source email client for Gmail, redesigned with **Material You (Material Design 3)**. No ads, no clutter, just your mail.
 
-Mmail doesn't host any mail. You sign in with Google and it reads and organizes the Gmail account you already have.
+Material Mail doesn't host any mail. You sign in with Google and it reads and organizes the Gmail account you already have.
 
 ## Features
 
@@ -10,11 +10,11 @@ Mmail doesn't host any mail. You sign in with Google and it reads and organizes 
 - **Compose, reply, reply all and forward** (plain text)
 - **Every Gmail label:** Inbox, Starred, Important, Sent, Drafts, All Mail, Spam, Trash, the five inbox categories, and all of your own labels, with unread counts
 - Search, read, star, archive, trash, mark unread
-- **Sender logos:** Cash App, GitHub and other brands show their logo instead of a letter (fetched by Mmail's server, so your browser never contacts a third party)
+- **Sender logos:** Cash App, GitHub and other brands show their logo instead of a letter (fetched by Material Mail's server, so your browser never contacts a third party)
 - **Multiple accounts:** link up to 5 Google accounts and switch between them from the avatar menu
 - Material 3 color scheme generated from a single seed color
 - **Customize page:** light, dark or system theme, a color picker with presets, and on/off switches for everything below
-- **Wallpaper:** upload a picture and Mmail picks matching colors from it, and offers other colors from the image
+- **Wallpaper:** upload a picture and Material Mail picks matching colors from it, and offers other colors from the image
 - **Widgets:** clock (analog or digital), date, weather, unread count, note, calendar, quick search and compose. Drag them anywhere on the Home page with *Rearrange*, or keep them in a column beside your mail
 - **Optional top bar:** greeting, time and date, weather and unread count across the top of the app
 - Preferences and wallpaper are saved to your account (stored in Supabase), so they follow you to any device. Each linked account has its own look. The theme renders with no flash
@@ -38,13 +38,13 @@ Next.js (App Router) and TypeScript, Supabase (Postgres) for accounts and encryp
    - `https://YOUR-SERVICE.onrender.com/api/auth/callback`
 4. While the app is in *Testing* mode, add your Google account under **Test users**.
 
-> **Scopes:** Mmail asks for `gmail.modify` (read and organize mail) and `gmail.send` (send mail). Add both under **Data Access** in the Google Auth Platform. If you sign in before adding `gmail.send`, everything works except sending. After adding it, sign out and back in once.
+> **Scopes:** Material Mail asks for `gmail.modify` (read and organize mail) and `gmail.send` (send mail). Add both under **Data Access** in the Google Auth Platform. If you sign in before adding `gmail.send`, everything works except sending. After adding it, sign out and back in once.
 
-> **Heads up:** Mmail requests the `gmail.modify` scope, which Google classifies as *restricted*. In Testing mode only listed test users (up to 100) can sign in. Opening Mmail to everyone requires Google's app verification and a security assessment.
+> **Heads up:** Material Mail requests the `gmail.modify` scope, which Google classifies as *restricted*. In Testing mode only listed test users (up to 100) can sign in. Opening Material Mail to everyone requires Google's app verification and a security assessment.
 
 ### 2. Supabase
 
-Create a project, then run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. (It is safe to run again after updating Mmail; it only adds what's missing.) Copy the project URL and the **service role** key from *Project Settings > API*.
+Create a project, then run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. (It is safe to run again after updating Material Mail; it only adds what's missing.) Copy the project URL and the **service role** key from *Project Settings > API*.
 
 ### 3. Environment variables
 
@@ -78,6 +78,10 @@ The repo includes a [`render.yaml`](render.yaml) blueprint. Create a **Web Servi
 - Outgoing mail headers are stripped of line breaks (blocking header injection), and the send endpoint only accepts JSON requests.
 - Wallpapers are re-encoded in the browser (removing photo metadata) and only real JPEGs are stored. Logo images are served as raster formats only, never SVG.
 - Weather uses Open-Meteo, which needs no account. Only the coordinates of the city you pick are sent to it.
+
+## Legal
+
+The app ships a [Privacy Policy](src/app/privacy/page.tsx) (`/privacy`) and [Terms of Service](src/app/terms/page.tsx) (`/terms`). If you run your own copy, review them and replace the contact and repository links with yours.
 
 ## Contributing
 

@@ -5,7 +5,7 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
 
 /**
- * gmail.modify lets Mmail read mail and change labels (read/unread, star, archive, trash).
+ * gmail.modify lets Material Mail read mail and change labels (read/unread, star, archive, trash).
  * gmail.send lets it send what you compose, reply to and forward.
  */
 export const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";

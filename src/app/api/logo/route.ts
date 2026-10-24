@@ -12,7 +12,7 @@ type Entry = { at: number; body: ArrayBuffer | null; type: string };
 const cache = new Map<string, Entry>();
 
 /**
- * Where logos come from, in order. Mmail fetches them on the server so your
+ * Where logos come from, in order. Material Mail fetches them on the server so your
  * browser never contacts these services and who you email isn't tied to your IP.
  */
 const SOURCES = (domain: string) => [

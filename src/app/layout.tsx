@@ -7,9 +7,9 @@ import "./globals.css";
 import "./widgets.css";
 
 export const metadata: Metadata = {
-  title: "Mmail",
+  title: "Material Mail",
   description:
-    "Mmail is a free, open-source Material You email client for Gmail. No ads, no clutter.",
+    "Material Mail is a free, open-source Material You email client for Gmail. No ads, no clutter.",
 };
 
 export const viewport: Viewport = {

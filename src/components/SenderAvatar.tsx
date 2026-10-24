@@ -5,7 +5,7 @@ import { brandDomain } from "@/lib/logo";
 
 /**
  * A sender's brand logo (Cash App, GitHub, ...) when one exists, otherwise the
- * first letter of their name. Logos are fetched through Mmail's own server.
+ * first letter of their name. Logos are fetched through Material Mail's own server.
  */
 export function SenderAvatar({
   name,

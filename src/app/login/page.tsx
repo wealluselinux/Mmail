@@ -3,13 +3,13 @@ import { redirect } from "next/navigation";
 import { GoogleG, Icon } from "@/components/Icon";
 import { getSessionUser } from "@/lib/session";
 
-export const metadata = { title: "Sign in · Mmail" };
+export const metadata = { title: "Sign in · Material Mail" };
 export const dynamic = "force-dynamic";
 
 const ERRORS: Record<string, string> = {
   access_denied: "Sign-in was cancelled. You need to allow access to continue.",
   missing_gmail_scope:
-    "Mmail needs permission to read your Gmail. Please try again and tick the Gmail access box.",
+    "Material Mail needs permission to read your Gmail. Please try again and tick the Gmail access box.",
   invalid_state: "That sign-in link expired. Please try again.",
   no_refresh_token: "Google didn't grant long-lived access. Please try again.",
   database_error: "Something went wrong saving your account. Please try again.",
@@ -33,7 +33,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <div className="brand-mark">
           <Icon name="mail" size={32} />
         </div>
-        <h1>Welcome to Mmail</h1>
+        <h1>Welcome to Material Mail</h1>
         <p>Sign in with your Google account to open your Gmail inbox.</p>
         {message && (
           <p className="login-error" role="alert">
@@ -46,7 +46,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           Sign in with Google
         </a>
         <p className="login-note">
-          Mmail is open source and only talks to Google and your own Gmail account.
+          Material Mail is open source and only talks to Google and your own Gmail account. By
+          signing in you agree to our <Link href="/terms">Terms of Service</Link> and{" "}
+          <Link href="/privacy">Privacy Policy</Link>.
         </p>
         <Link href="/" className="btn btn-text" style={{ marginTop: 8 }}>
           Back to home

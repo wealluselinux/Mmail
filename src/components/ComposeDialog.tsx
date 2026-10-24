@@ -26,7 +26,7 @@ export type ComposeRequest = {
 
 const ERRORS: Record<string, string> = {
   insufficient_scope:
-    "Mmail needs permission to send mail. Sign out, sign in again, and allow sending when Google asks.",
+    "Material Mail needs permission to send mail. Sign out, sign in again, and allow sending when Google asks.",
   invalid_recipient: "One of the email addresses doesn't look right.",
   no_recipient: "Add at least one person in the To field.",
   too_many_recipients: "That's too many recipients for one message.",

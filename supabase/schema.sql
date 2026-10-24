@@ -1,4 +1,4 @@
--- Mmail database schema. Run this once in the Supabase SQL editor.
+-- Material Mail database schema. Run this once in the Supabase SQL editor.
 
 create table if not exists public.users (
   google_sub              text primary key,

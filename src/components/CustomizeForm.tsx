@@ -266,7 +266,7 @@ function WallpaperSection() {
     <section className="card">
       <h2>Wallpaper</h2>
       <p>
-        Put a picture behind Mmail. It picks matching colors from the image, so everything
+        Put a picture behind Material Mail. It picks matching colors from the image, so everything
         else follows its mood.
       </p>
 
@@ -357,7 +357,7 @@ export function CustomizeForm() {
 
         <section className="card">
           <h2>Appearance</h2>
-          <p>Mmail builds its whole color palette from one color, the way Material You does.</p>
+          <p>Material Mail builds its whole color palette from one color, the way Material You does.</p>
 
           <span className="field-label" style={{ marginTop: 0 }}>
             Theme
