@@ -170,13 +170,18 @@ export default function Privacy() {
           . Once revoked, the stored token stops working immediately.
         </li>
         <li>
-          <strong>Ask us to delete your data</strong> (profile, encrypted token, preferences, and
-          wallpaper) by opening an issue at{" "}
+          <strong>Delete your data yourself:</strong> open <em>Customize</em>, then{" "}
+          <em>Delete my data</em>. This immediately and permanently removes your profile, encrypted
+          token, preferences, and wallpaper from our database, and revokes Material Mail&rsquo;s
+          access in Google. Your emails are not affected because they live in Gmail.
+        </li>
+        <li>
+          <strong>Ask us for help</strong> with deletion or any other privacy question by opening
+          an issue at{" "}
           <a href={ISSUES_URL} target="_blank" rel="noreferrer">
             our GitHub issue tracker
           </a>
-          . Please do not post private information there; we will tell you how to verify your
-          account privately. Requests are handled promptly.
+          . Please do not post private information there.
         </li>
       </ul>
 

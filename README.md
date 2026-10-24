@@ -19,6 +19,7 @@ Material Mail doesn't host any mail. You sign in with Google and it reads and or
 - **Optional top bar:** greeting, time and date, weather and unread count across the top of the app
 - Preferences and wallpaper are saved to your account (stored in Supabase), so they follow you to any device. Each linked account has its own look. The theme renders with no flash
 - Privacy first: remote images in emails are blocked until you allow them, and message HTML is rendered in a sandbox with scripts disabled
+- **Delete my data** button (Customize page): removes your profile, token, settings and wallpaper and revokes access in Google
 - Google refresh tokens are encrypted (AES-256-GCM) before they are stored
 
 **Planned:** threads, attachments, applying labels to messages, rich-text compose, drafts.

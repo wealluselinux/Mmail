@@ -1047,3 +1047,14 @@ html {
 .l-weather {
   bottom: -14px;
 }
+
+.btn-danger {
+  background: var(--md-error);
+  color: var(--md-on-error);
+}
+.btn-danger:hover:not(:disabled) {
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--md-error) 45%, transparent);
+}
+.danger-card h2 {
+  color: var(--md-error);
+}

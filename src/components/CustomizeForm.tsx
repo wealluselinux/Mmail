@@ -335,6 +335,59 @@ function WallpaperSection() {
   );
 }
 
+function DeleteAccount() {
+  const [step, setStep] = useState<"idle" | "confirm" | "working">("idle");
+  const [error, setError] = useState("");
+
+  async function run() {
+    setStep("working");
+    setError("");
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE" }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json().catch(() => ({}));
+      window.location.assign(data.empty ? "/" : "/mail");
+    } catch {
+      setError("Couldn't delete your data. Please try again.");
+      setStep("confirm");
+    }
+  }
+
+  return (
+    <section className="card danger-card">
+      <h2>Delete my data</h2>
+      <p>
+        Permanently deletes this account&rsquo;s saved data from Material Mail: your profile, sign-in
+        token, settings and wallpaper. It also revokes Material Mail&rsquo;s access in Google. Your
+        emails are not touched, because they stay in Gmail.
+      </p>
+      {error && (
+        <p className="login-error" role="alert">
+          {error}
+        </p>
+      )}
+      {step === "idle" ? (
+        <button className="btn btn-danger" onClick={() => setStep("confirm")}>
+          Delete my data
+        </button>
+      ) : (
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button className="btn btn-danger" disabled={step === "working"} onClick={run}>
+            {step === "working" ? "Deleting…" : "Yes, delete everything"}
+          </button>
+          <button className="btn btn-text" disabled={step === "working"} onClick={() => setStep("idle")}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function CustomizeForm() {
   const { prefs, status, update, reset } = usePrefs();
   const [hexDraft, setHexDraft] = useState<string | null>(null);
@@ -522,6 +575,8 @@ export function CustomizeForm() {
             onChange={(dock) => update({ dock })}
           />
         </section>
+
+        <DeleteAccount />
 
         <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
           <Link href="/mail" className="btn btn-filled">
