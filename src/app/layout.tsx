@@ -25,6 +25,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
       <head>
+        <meta name="google-site-verification" content="K03Ae35CJiiBISGu8jljvx4gj0jCN9MtjYM__lcnpPM" />
         <style id="mmail-theme" dangerouslySetInnerHTML={{ __html: buildThemeCss(prefs.seed, prefs.mode) }} />
       </head>
       <body>{children}</body>
