@@ -4,6 +4,8 @@ A free, open-source email client for Gmail, redesigned with **Material You (Mate
 
 Material Mail doesn't host any mail. You sign in with Google and it reads and organizes the Gmail account you already have.
 
+> **Material Mail is in testing.** Google hasn't finished reviewing the app, so only approved testers can sign in. After pressing *Sign in with Google* you'll see a warning like *"Google hasn't verified this app"*. That is expected. **Don't press Back to safety if you want to use the app**: choose *Continue* (or *Advanced*, then *Go to Material Mail*), but only if you trust this project. If Google says *Access blocked*, your account isn't on the tester list yet; open an issue to ask for access (leave your email out of the public post). While in testing, Google signs you out after about 7 days.
+
 ## Features
 
 - Sign in with Google (the only way in)
@@ -69,6 +71,10 @@ Open <http://localhost:3000>.
 ## Deploy to Render
 
 The repo includes a [`render.yaml`](render.yaml) blueprint. Create a **Web Service** from this repo (or use the blueprint), then set `APP_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the dashboard. `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET` are generated for you. Render redeploys on every push.
+
+### 5. Keep the free Render service awake (optional)
+
+Render's free plan sleeps a service after about 15 minutes without traffic, so the first visit afterwards is slow. [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings `/api/health` every 10 minutes from GitHub Actions to prevent that. It uses `https://mmail.onrender.com` by default; to point it elsewhere, add a repository variable named `SITE_URL` (Settings > Secrets and variables > Actions > Variables). Notes: GitHub can delay scheduled runs, so an occasional sleep can still happen; GitHub pauses scheduled workflows after 60 days without repository activity (re-enable them on the Actions tab); and Render's free plan has a monthly hour allowance shared by all your free services, which a service that never sleeps will use up quickly.
 
 ## Security notes
 

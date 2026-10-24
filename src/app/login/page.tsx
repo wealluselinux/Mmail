@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GoogleG, Icon } from "@/components/Icon";
+import { TestingNotice } from "@/components/TestingNotice";
 import { getSessionUser } from "@/lib/session";
 
 export const metadata = { title: "Sign in · Material Mail" };
@@ -40,6 +41,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             {message}
           </p>
         )}
+        <TestingNotice compact />
         {/* Plain link, not next/link: this starts a full-page OAuth redirect. */}
         <a href="/api/auth/google" className="btn google-btn">
           <GoogleG />

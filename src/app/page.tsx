@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
+import { TestingNotice } from "@/components/TestingNotice";
 import { LandingTheme } from "@/components/LandingTheme";
 import { LegalFooter, REPO_URL } from "@/components/LegalPage";
 
@@ -102,6 +103,10 @@ export default function Home() {
             <LandingTheme />
           </div>
           <MailPreview />
+        </section>
+
+        <section className="l-section l-notice-wrap">
+          <TestingNotice />
         </section>
 
         <section id="features" className="l-section">
